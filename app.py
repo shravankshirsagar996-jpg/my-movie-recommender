@@ -274,6 +274,10 @@ st.markdown("""
 # ── Data loading ──────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_data():
+    # फाईल खरंच अस्तित्वात आहे का हे तपासतो
+    if not os.path.exists(MOVIE_PKL) or not os.path.exists(SIMILARITY_PKL):
+        raise FileNotFoundError("Model files are missing. Check your GitHub repository.")
+        
     with open(MOVIE_PKL, "rb") as f:
         movies = pickle.load(f)
     with open(SIMILARITY_PKL, "rb") as f:
@@ -282,16 +286,17 @@ def load_data():
 
 try:
     movies_df, similarity = load_data()
-    # Build title list and a fast lookup: title → movie_id (if column exists)
     movie_titles = sorted(movies_df["title"].tolist())
     has_movie_id = "movie_id" in movies_df.columns
     data_ok = True
 except Exception as e:
-    st.error(f"⚠️ Could not load data files.\n\n`{e}`")
+    # प्रोफेशनल एरर मेसेज जो युजरला कळवेल की ड्राइव्हवरून फाईल डाऊनलोड करायची आहे
+    st.error(f"⚠️ **Attention:** AI Models not found on server.\n\n"
+             f"If you are seeing this on Streamlit Cloud, please ensure `{MOVIE_PKL}` is uploaded to your GitHub repository. "
+             f"If the file is too large, use the Google Drive link provided in the README.")
     data_ok = False
     movie_titles = []
     has_movie_id = False
-
 
 # ── TMDB helpers ──────────────────────────────────────────────────────────────
 def _tmdb_get(endpoint: str, extra: dict = {}) -> dict:
@@ -300,7 +305,6 @@ def _tmdb_get(endpoint: str, extra: dict = {}) -> dict:
     r = requests.get(f"{TMDB_BASE}{endpoint}", params=params, timeout=10)
     r.raise_for_status()
     return r.json()
-
 
 def _title_variants(title: str) -> list:
     """Return search strings to try — strips #, parens, colons."""
